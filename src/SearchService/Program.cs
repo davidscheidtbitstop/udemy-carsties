@@ -1,5 +1,7 @@
 using MongoDB.Driver;
 using MongoDB.Entities;
+using SearchService.Data;
+using SearchService.Endpoints;
 using SearchService.Model;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,13 +13,17 @@ var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-await DB.InitAsync("SearchDb", MongoClientSettings.FromConnectionString(
-    builder.Configuration.GetConnectionString("MongoDbConnection")));
 
-await DB.Index<Item>()
-    .Key(x => x.Make, KeyType.Text)
-    .Key(x => x.Model, KeyType.Text)
-    .Key(x => x.Color, KeyType.Text)
-    .CreateAsync();
+try
+{
+    await app.InitDb();
+}
+catch (Exception e)
+{
+    Console.WriteLine(e);
+    throw;
+}
+
+app.MapSearchEndpoints();
 
 app.Run();
