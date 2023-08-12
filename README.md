@@ -7,5 +7,6 @@ https://www.udemy.com/course/build-a-microservices-app-with-dotnet-and-nextjs-fr
 
 I am making a couple of changes to the code as I go through.
 1. Change to minimal APIs instead of controllers
-2. replace Moq in the testing with NSubstitute
-3. replace the NextJs website with a blazor website (fingers crossed on this one)
+2. Use Mapster instead of AutoMapper
+3. replace Moq in the testing with NSubstitute
+4. replace the NextJs website with a blazor website (fingers crossed on this one)
