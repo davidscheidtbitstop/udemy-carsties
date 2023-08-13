@@ -33,15 +33,21 @@ public static class AuctionEndpoints
             .WithName("DeleteAuction");
     }
 
-    private static async Task<Ok<IReadOnlyCollection<AuctionDto>>> GetAllAuctions(
-        AuctionDbContext dbContext)
+    private static async Task<Ok<List<AuctionDto>>> GetAllAuctions(
+        AuctionDbContext dbContext, string date)
     {
-        var auctions = await dbContext.Auctions
-            .Include(x => x.Item)
-            .OrderBy(x => x.Item.Make)
+        var query = dbContext.Auctions.OrderBy(x => x.Item.Make)
+            .AsQueryable();
+        
+        if (!string.IsNullOrWhiteSpace(date))
+        {
+            query = query.Where(x => x.UpdatedAt.CompareTo(
+                DateTime.Parse(date).ToUniversalTime()) > 0);
+        }
+        
+        var results = await query.ProjectToType<AuctionDto>()
             .ToListAsync();
-
-        return TypedResults.Ok(auctions.Adapt<IReadOnlyCollection<AuctionDto>>());
+        return TypedResults.Ok(results);
     }
 
     private static async Task<Results<Ok<AuctionDto>, NotFound>> GetAuctionById(
