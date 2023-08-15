@@ -3,7 +3,9 @@ using AuctionService.DTOs;
 using AuctionService.Filters;
 using AuctionService.Models;
 using AuctionService.Validators;
+using Contracts;
 using Mapster;
+using MassTransit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
@@ -66,8 +68,9 @@ public static class AuctionEndpoints
         return TypedResults.Ok(auction.Adapt<AuctionDto>());
     }
 
-    private static async Task<Results<CreatedAtRoute<AuctionDto>, BadRequest>> CreateAuction(
+    private static async Task<Results<CreatedAtRoute<AuctionDto>, BadRequest<string>>> CreateAuction(
         AuctionDbContext dbContext,
+        IPublishEndpoint publishEndpoint,
         CreateAuctionDto auctionDto)
     {
         var auction = auctionDto.Adapt<Auction>();
@@ -78,10 +81,14 @@ public static class AuctionEndpoints
         
         if (!result)
         {
-            throw new Exception("Failed to save auction");
+            return TypedResults.BadRequest("Could not save changes to the DB");
         }
-
-        return TypedResults.CreatedAtRoute(auction.Adapt<AuctionDto>(),
+        
+        var newAuction = auction.Adapt<AuctionDto>();
+        
+        await publishEndpoint.Publish(newAuction.Adapt<AuctionCreated>());
+        
+        return TypedResults.CreatedAtRoute(newAuction,
             routeName: nameof(GetAuctionById),
             routeValues: new { id = auction.Id });
     }
