@@ -77,6 +77,11 @@ public static class AuctionEndpoints
         auction.Seller = "test";
 
         await dbContext.AddAsync(auction);
+        
+        var newAuction = auction.Adapt<AuctionDto>();
+        
+        await publishEndpoint.Publish(newAuction.Adapt<AuctionCreated>());
+        
         var result = await dbContext.SaveChangesAsync() > 0;
         
         if (!result)
@@ -84,9 +89,6 @@ public static class AuctionEndpoints
             return TypedResults.BadRequest("Could not save changes to the DB");
         }
         
-        var newAuction = auction.Adapt<AuctionDto>();
-        
-        await publishEndpoint.Publish(newAuction.Adapt<AuctionCreated>());
         
         return TypedResults.CreatedAtRoute(newAuction,
             routeName: nameof(GetAuctionById),
