@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using AuctionService.DTOs;
 using AuctionService.Models;
+using Contracts;
 using Mapster;
 
 namespace AuctionService.RequestHelpers;

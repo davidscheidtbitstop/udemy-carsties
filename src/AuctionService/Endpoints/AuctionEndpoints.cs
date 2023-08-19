@@ -89,7 +89,6 @@ public static class AuctionEndpoints
             return TypedResults.BadRequest("Could not save changes to the DB");
         }
         
-        
         return TypedResults.CreatedAtRoute(newAuction,
             routeName: nameof(GetAuctionById),
             routeValues: new { id = auction.Id });
@@ -97,6 +96,7 @@ public static class AuctionEndpoints
     
     private static async Task<Results<Ok, NotFound<string>, BadRequest<string>>> UpdateAuction(
         AuctionDbContext dbContext,
+        IPublishEndpoint publishEndpoint,
         Guid id,
         UpdateAuctionDto updateAuctionDto)
     {
@@ -113,6 +113,10 @@ public static class AuctionEndpoints
         auction.Item.Mileage = updateAuctionDto.Mileage ?? auction.Item.Mileage;
         auction.Item.Year = updateAuctionDto.Year ?? auction.Item.Year;
 
+        var updatedAuction = auction.Adapt<AuctionDto>();
+        
+        await publishEndpoint.Publish(updatedAuction.Adapt<AuctionUpdated>());
+        
         var result = await dbContext.SaveChangesAsync() > 0;
 
         if (!result)
@@ -123,6 +127,7 @@ public static class AuctionEndpoints
     
     private static async Task<Results<Ok, NotFound<string>, BadRequest<string>>> DeleteAuction(
         AuctionDbContext dbContext,
+        IPublishEndpoint publishEndpoint,
         Guid id)
     {
         var auction = await dbContext.Auctions
@@ -133,6 +138,9 @@ public static class AuctionEndpoints
             return TypedResults.NotFound<string>($"ID: {id} not found");
 
         dbContext.Auctions.Remove(auction);
+
+        await publishEndpoint.Publish(new AuctionDeleted{ Id = id.ToString() });
+        
         var result = await dbContext.SaveChangesAsync() > 0;
 
         if (!result)
@@ -140,5 +148,4 @@ public static class AuctionEndpoints
             
         return TypedResults.Ok();
     }
-   
 }
