@@ -14,8 +14,7 @@ public static class Config
     public static IEnumerable<ApiScope> ApiScopes =>
         new ApiScope[]
         {
-            new ApiScope("scope1"),
-            new ApiScope("scope2"),
+            new ApiScope("auctionApp", "Auction app full access")
         };
 
     public static IEnumerable<Client> Clients =>
