@@ -1,4 +1,5 @@
-﻿using AuctionService.Data;
+﻿using System.Security.Claims;
+using AuctionService.Data;
 using AuctionService.DTOs;
 using AuctionService.Filters;
 using AuctionService.Models;
@@ -8,6 +9,7 @@ using Mapster;
 using MassTransit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace AuctionService.Endpoints;
@@ -25,13 +27,16 @@ public static class AuctionEndpoints
             .WithName("GetAuctionById");
 
         group.MapPost("/", CreateAuction)
-            .AddEndpointFilter<ValidatorFilter<CreateAuctionDto>>()            
+            .AddEndpointFilter<ValidatorFilter<CreateAuctionDto>>()
+            .RequireAuthorization()
             .WithName("CreateAuction");
         
         group.MapPut("/{id}", UpdateAuction)
+            .RequireAuthorization()
             .WithName("UpdateAuction");
 
         group.MapDelete("/{id}", DeleteAuction)
+            .RequireAuthorization()
             .WithName("DeleteAuction");
     }
 
@@ -70,11 +75,12 @@ public static class AuctionEndpoints
 
     private static async Task<Results<CreatedAtRoute<AuctionDto>, BadRequest<string>>> CreateAuction(
         AuctionDbContext dbContext,
+        ClaimsPrincipal user,
         IPublishEndpoint publishEndpoint,
         CreateAuctionDto auctionDto)
     {
         var auction = auctionDto.Adapt<Auction>();
-        auction.Seller = "test";
+        auction.Seller = user.Identity.Name;
 
         await dbContext.AddAsync(auction);
         
@@ -94,8 +100,9 @@ public static class AuctionEndpoints
             routeValues: new { id = auction.Id });
     }
     
-    private static async Task<Results<Ok, NotFound<string>, BadRequest<string>>> UpdateAuction(
+    private static async Task<Results<Ok, NotFound<string>, ForbidHttpResult, BadRequest<string>>> UpdateAuction(
         AuctionDbContext dbContext,
+        ClaimsPrincipal user,
         IPublishEndpoint publishEndpoint,
         Guid id,
         UpdateAuctionDto updateAuctionDto)
@@ -107,6 +114,9 @@ public static class AuctionEndpoints
         if (auction is null)
             return TypedResults.NotFound<string>($"ID: {id} not found");
 
+        if (auction.Seller != user.Identity.Name)
+            return TypedResults.Forbid();
+        
         auction.Item.Make = updateAuctionDto.Make ?? auction.Item.Make;
         auction.Item.Model = updateAuctionDto.Model ?? auction.Item.Model;
         auction.Item.Color = updateAuctionDto.Color ?? auction.Item.Color;
@@ -125,8 +135,9 @@ public static class AuctionEndpoints
         return TypedResults.Ok();
     }
     
-    private static async Task<Results<Ok, NotFound<string>, BadRequest<string>>> DeleteAuction(
+    private static async Task<Results<Ok, NotFound<string>, ForbidHttpResult, BadRequest<string>>> DeleteAuction(
         AuctionDbContext dbContext,
+        ClaimsPrincipal user,
         IPublishEndpoint publishEndpoint,
         Guid id)
     {
@@ -137,6 +148,9 @@ public static class AuctionEndpoints
         if (auction is null)
             return TypedResults.NotFound<string>($"ID: {id} not found");
 
+        if (auction.Seller != user.Identity.Name) 
+            return TypedResults.Forbid();
+        
         dbContext.Auctions.Remove(auction);
 
         await publishEndpoint.Publish(new AuctionDeleted{ Id = id.ToString() });
